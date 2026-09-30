@@ -1,0 +1,171 @@
+(defpoll hostname :interval "10s"
+  "hostname")
+
+(defpoll kernel :interval "30s"
+  "uname -r")
+
+(defpoll uptime :interval "5s"
+  "uptime -p | sed 's/up //'")
+
+(defpoll loadavg :interval "2s"
+  "awk '{print $1, $2, $3}' /proc/loadavg")
+
+(defpoll procs :interval "2s"
+  "ps ax --no-headers | wc -l")
+
+(defpoll cpu_usage :interval "2s"
+  "top -bn1 | awk '/Cpu\\(s\\)/ {printf \"%.0f\", 100-$8}'")
+
+(defpoll cpu_freq :interval "2s"
+  "awk '{printf \"%.2f GHz\", $1/1000000}' /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq")
+
+(defpoll core0 :interval "2s"
+  "grep 'cpu0' /proc/stat | awk '{print $2+$4+$5+$6+$7+$8+$9+$10, $2+$4+$5+$6+$7+$8+$9+$10+$11}'")
+
+(defpoll temp :interval "2s"
+  "awk '{printf \"%.0f°C\", $1/1000}' /sys/class/thermal/thermal_zone2/temp")
+
+(defpoll ram :interval "2s"
+  "free -h | awk '/Mem:/ {print $3 \" / \" $2}'")
+
+(defpoll ram_percent :interval "2s"
+  "free | awk '/Mem:/ {printf \"%.0f%%\", $3/$2*100}'")
+
+(defpoll swap :interval "2s"
+  "free -h | awk '/Swap:/ {print $3 \" / \" $2}'")
+
+(defpoll root_disk :interval "10s"
+  "df -h / | awk 'NR==2 {print $3 \" / \" $2}'")
+
+(defpoll storage_disk :interval "10s"
+  "df -h /mnt/storage 2>/dev/null | awk 'NR==2 {print $3 \" / \" $2}'")
+
+(defpoll iface :interval "5s"
+  "ip route | awk '/default/ {print $5; exit}'")
+
+(defpoll ipaddr :interval "5s"
+  "ip -4 addr show (ip route | awk '/default/ {print $5; exit}') | awk '/inet / {print $2; exit}' | cut -d/ -f1")
+
+(defpoll net_up :interval "2s"
+  "~/.config/eww/scripts/net-speed.sh up")
+
+(defpoll net_down :interval "2s"
+  "~/.config/eww/scripts/net-speed.sh down")
+
+(defpoll battery_status :interval "30s"
+  "cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo unknown")
+
+(defpoll battery :interval "30s"
+  "cat /sys/class/power_supply/BAT0/capacity 2>/dev/null | sed 's/$/%/' || echo '--'")
+
+(defpoll top_processes :interval "3s"
+  "ps -eo comm,%cpu --sort=-%cpu --no-headers | head -5")
+
+(defwidget separator []
+  (label :class "separator"
+         :text "────────────────────────"))
+
+(defwidget row [key value]
+  (box :class "row"
+       :orientation "horizontal"
+       (label :class "key" :text key)
+       (label :class "value" :text value)))
+
+(defwidget section [title]
+  (box :orientation "vertical"
+       :space-evenly false
+       (label :class "section" :text title)
+       (separator)))
+
+(defwidget system_panel []
+  (box :class "panel"
+       :orientation "vertical"
+       :space-evenly false
+
+       (label :class "panel-title" :text "SYSTEM")
+
+       (row :key "host" :value hostname)
+       (row :key "kernel" :value kernel)
+       (row :key "uptime" :value uptime)
+       (row :key "load" :value loadavg)
+       (row :key "procs" :value procs)
+
+       (section :title "CPU")
+
+       (row :key "usage" :value "${cpu_usage}%")
+       (row :key "freq" :value cpu_freq)
+       (row :key "temp" :value temp)
+
+       (section :title "MEMORY")
+
+       (row :key "ram" :value "${ram}  ${ram_percent}")
+       (row :key "swap" :value swap)
+
+       (section :title "DISK")
+
+       (row :key "root" :value root_disk)
+       (row :key "storage" :value storage_disk)
+
+       (section :title "NETWORK")
+
+       (row :key "iface" :value iface)
+       (row :key "ip" :value ipaddr)
+       (row :key "up" :value net_up)
+       (row :key "down" :value net_down)
+
+       (section :title "PROCESSES")
+
+       (label :class "processes"
+              :text top_processes)
+
+       (section :title "BATTERY")
+
+       (row :key "status" :value battery_status)
+       (row :key "charge" :value battery)))
+
+(defwindow system_hud
+  :monitor 0
+  :geometry (geometry
+    :x "18px"
+    :y "45px"
+    :width "190px"
+    :height "650px"
+    :anchor "top right")
+  :stacking "overlay"
+  :exclusive false
+  :focusable false
+  :namespace "system-hud"
+  (system_panel))
+
+(deflisten cava_bars
+  :initial "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"
+  "~/.config/eww/scripts/cava.sh")
+
+(defwidget cava_panel []
+  (box
+    :class "cava-panel"
+    :orientation "v"
+    :space-evenly false
+
+    (label
+      :class "cava-title"
+      :text "AUDIO")
+
+    (label
+      :class "cava-bars"
+      :text cava_bars)
+  ))
+
+(defwindow cava_hud
+  :monitor 0
+  :geometry (geometry
+    :x "18px"
+    :y "710px"
+    :width "190px"
+    :height "100px"
+    :anchor "top right")
+  :stacking "overlay"
+  :exclusive false
+  :focusable false
+  :namespace "cava-hud"
+  (cava_panel))
